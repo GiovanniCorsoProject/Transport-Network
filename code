@@ -1,0 +1,115 @@
+#Progetto Rete di trasporti e inferenza a mondo chiuso (CWA)
+
+
+# 1-Installazione e importazione libreria
+!pip install owlready2
+from owlready2 import *
+
+
+# 2-Creazione ontologia
+onto = get_ontology("http://esempio.org/rete_trasporti.owl")
+
+with onto:
+    #3-Definizione delle classi
+    class Citta(Thing): pass
+    class Volo(Thing): pass
+
+    class LuogoPartenza(ObjectProperty):
+        domain = [Volo]
+        range = [Citta]
+
+    class LuogoArrivo(ObjectProperty):
+        domain = [Volo]
+        range = [Citta]
+
+    class volo_diretto(ObjectProperty):
+        domain = [Citta]
+        range = [Citta]
+
+    class volo_indiretto(ObjectProperty):
+        domain = [Citta]
+        range = [Citta]
+
+# 4-Creazione delle città
+pechino = Citta("Pechino")
+trieste = Citta("Trieste")
+crotone = Citta("Crotone")
+bucarest = Citta("Bucarest")
+mondello = Citta("Mondello")
+miami = Citta("Miami")
+aosta = Citta("Aosta")
+copenaghen = Citta("Copenaghen")
+
+# 5- Creazione voli diretti
+def istituisci_nuova_tratta_diretta(da_citta, a_citta):
+    volo = Volo(f"volo_{da_citta.name}_{a_citta.name}")
+    volo.LuogoPartenza = [da_citta]
+    volo.LuogoArrivo = [a_citta]
+    da_citta.volo_diretto.append(a_citta)
+
+istituisci_nuova_tratta_diretta(pechino, trieste)
+istituisci_nuova_tratta_diretta(trieste, bucarest)
+istituisci_nuova_tratta_diretta(bucarest, crotone)
+istituisci_nuova_tratta_diretta(pechino, crotone)
+istituisci_nuova_tratta_diretta(mondello, miami)
+istituisci_nuova_tratta_diretta(miami, pechino)
+istituisci_nuova_tratta_diretta(aosta, mondello)
+istituisci_nuova_tratta_diretta(copenaghen, trieste)
+istituisci_nuova_tratta_diretta(aosta, copenaghen)
+istituisci_nuova_tratta_diretta(mondello, bucarest)
+
+# 6-Inferenza di voli indiretti
+def identifica_tratta_senza_volo_diretto():
+    citta = list(Citta.instances())
+    for a in citta:
+        for b in citta:
+            for c in citta:
+                if b in a.volo_diretto and c in b.volo_diretto:
+                    if c not in a.volo_indiretto:
+                        a.volo_indiretto.append(c)
+
+
+# 7-Si desumono i voli assenti basandosi sul principio di CWA
+tratte_assenti = set()
+
+def principio_cwa_voli_assenti():
+    citta = list(Citta.instances())
+    for a in citta:
+        for b in citta:
+            if a != b and b not in a.volo_diretto and b not in a.volo_indiretto:
+                tratte_assenti.add((a.name, b.name))
+
+# 8-Definizione delle funzioni per verificare i voli
+def verifica_volo_diretto(a, b):
+    return b in a.volo_diretto
+
+def verifica_volo_indiretto(a, b):
+    return b in a.volo_indiretto
+
+def verifica_volo_assente(a, b):
+    return (a.name, b.name) in tratte_assenti
+
+
+# 9- Esecuzione funzioni
+identifica_tratta_senza_volo_diretto()
+principio_cwa_voli_assenti()
+
+# 10- Funzione verifica Voli
+def funzione_di_verifica():
+  coppie = [  (pechino, bucarest), (pechino, crotone), (trieste, crotone), (bucarest, pechino),
+        (aosta, pechino), (mondello, bucarest), (aosta, miami), (copenaghen, crotone) ]
+  for a, b in coppie:
+        print(f"\nDa {a.name} a {b.name}:")
+        print(" Volo Diretto Disponibile:", verifica_volo_diretto(a, b))
+        print(" Volo Indiretto Disponibile:", verifica_volo_indiretto(a, b))
+        print(" Nessuna possibile tratta trovata:", verifica_volo_assente(a, b))
+
+funzione_di_verifica()
+
+# 11-Funzionamento non monontono a seguito dell'inserimento di una nuova tratta
+print("\n\nRICHIESTA INSERIMENTO NUOVA TRATTA: TRIESTE-CROTONE")
+istituisci_nuova_tratta_diretta(trieste, crotone)
+identifica_tratta_senza_volo_diretto()
+principio_cwa_voli_assenti()
+print("\nDopo aggiornamento:")
+funzione_di_verifica()
